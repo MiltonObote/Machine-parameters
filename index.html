@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Machine Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      text-align: center;
+      padding-top: 30px;
+    }
+    .box {
+      background: white;
+      padding: 30px 50px;
+      display: inline-block;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .label {
+      font-weight: bold;
+      color: #444;
+      margin-top: 15px;
+    }
+    .value {
+      font-size: 1.8em;
+      color: green;
+    }
+    #status {
+      font-weight: bold;
+      color: white;
+      background: red;
+      padding: 5px 15px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    .btn {
+      margin: 10px 5px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    .start-btn { background-color: #4CAF50; color: white; }
+    .stop-btn { background-color: #f44336; color: white; }
+    #time {
+      font-size: 0.9em;
+      color: #888;
+      margin-top: 20px;
+    }
+    #history-log {
+      margin-top: 20px;
+      text-align: left;
+      font-size: 1em;
+      max-width: 300px;
+      margin-left: auto;
+      margin-right: auto;
+      background: #fafafa;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    canvas {
+      margin-top: 30px;
+      max-width: 600px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Machine Dashboard</h1>
+
+    <p class="label">Voltage:</p>
+    <p class="value" id="voltage">220V</p>
+
+    <p class="label">Temperature:</p>
+    <p class="value" id="temperature">45°C</p>
+
+    <p class="label">Machine Status:</p>
+    <p id="status">OFF</p>
+
+    <div>
+      <button class="btn start-btn" onclick="startMachine()">Start</button>
+      <button class="btn stop-btn" onclick="stopMachine()">Stop</button>
+      <button class="btn" onclick="downloadCSV()">Download CSV</button>
+    </div>
+
+    <div id="time"></div>
+
+    <div id="history-log">
+      <h3>📜 Recent Readings:</h3>
+      <ul id="readings-list" style="list-style-type: decimal; padding-left: 20px;"></ul>
+    </div>
+
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <script>
+    let isRunning = false;
+    let history = [];
+    let chart;
+    let labels = [];
+    let voltageData = [];
+    let tempData = [];
+
+    function updateValues() {
+      if (!isRunning) return;
+
+      let voltage = Math.floor(Math.random() * 21) + 210;
+      let temp = Math.floor(Math.random() * 31) + 35;
+      let now = new Date().toLocaleTimeString();
+
+      document.getElementById("voltage").textContent = voltage + "V";
+      document.getElementById("temperature").textContent = temp + "°C";
+
+      let reading = `${voltage}V - ${temp}°C`;
+      history.unshift(reading);
+      if (history.length > 5) history.pop();
+
+      const list = document.getElementById("readings-list");
+      list.innerHTML = "";
+      history.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        list.appendChild(li);
+      });
+
+      // Update graph data
+      if (labels.length >= 10) {
+        labels.shift();
+        voltageData.shift();
+        tempData.shift();
+      }
+      labels.push(now);
+      voltageData.push(voltage);
+      tempData.push(temp);
+      chart.update();
+    }
+
+    function startMachine() {
+      isRunning = true;
+      document.getElementById("status").textContent = "ON";
+      document.getElementById("status").style.background = "green";
+    }
+
+    function stopMachine() {
+      isRunning = false;
+      document.getElementById("status").textContent = "OFF";
+      document.getElementById("status").style.background = "red";
+    }
+
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString();
+      document.getElementById("time").textContent = "Current Time: " + timeString;
+    }
+
+    function downloadCSV() {
+      if (history.length === 0) {
+        alert("No readings to download.");
+        return;
+      }
+
+      let csvContent = "data:text/csv;charset=utf-8,Voltage,Temperature\n";
+      history.forEach(item => {
+        const [voltage, temperature] = item.replace("V", "").replace("°C", "").split(" - ");
+        csvContent += `${voltage},${temperature}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "machine_readings.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Set up chart after DOM loads
+    window.onload = () => {
+      const ctx = document.getElementById("myChart").getContext("2d");
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Voltage (V)",
+              data: voltageData,
+              borderColor: "blue",
+              borderWidth: 2,
+              fill: false
+            },
+            {
+              label: "Temperature (°C)",
+              data: tempData,
+              borderColor: "orange",
+              borderWidth: 2,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      });
+    };
+
+    setInterval(updateValues, 3000);
+    setInterval(updateTime, 1000);
+  </script>
+</body>
+</html>
